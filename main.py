@@ -185,8 +185,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     await update.message.reply_text(
         text,
-        reply_markup=get_main_keyboard(),
-        parse_mode="Markdown"
+        reply_markup=get_main_keyboard()
+        
     )
 
 
@@ -212,7 +212,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 📧 info@arxproektstroy.ru
 🌐 arxproektstroy.ru"""
     
-    await update.message.reply_text(text, parse_mode="Markdown")
+    await update.message.reply_text(text, )
 
 
 # ============== ОБРАБОТЧИКИ КНОПОК ==============
@@ -229,37 +229,36 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 Выберите интересующий раздел:"""
         await query.edit_message_text(
             text,
-            reply_markup=get_main_keyboard(),
-            parse_mode="Markdown"
+            reply_markup=get_main_keyboard()
+            
         )
         return ConversationHandler.END
     
     elif data == "company":
         await query.edit_message_text(
             COMPANY_INFO,
-            reply_markup=get_request_keyboard(),
-            parse_mode="Markdown"
+            reply_markup=get_request_keyboard()
+            
         )
     
     elif data == "services":
         await query.edit_message_text(
             SERVICES_INFO,
-            reply_markup=get_request_keyboard(),
-            parse_mode="Markdown"
+            reply_markup=get_request_keyboard()
+            
         )
     
     elif data == "objects":
         await query.edit_message_text(
             OBJECT_TYPES,
-            reply_markup=get_request_keyboard(),
-            parse_mode="Markdown"
+            reply_markup=get_request_keyboard()
+            
         )
     
     elif data == "portfolio":
         await query.edit_message_text(
             PORTFOLIO_INFO,
-            reply_markup=get_request_keyboard(),
-            parse_mode="Markdown"
+            reply_markup=get_request_keyboard()
         )
     
     elif data == "request":
@@ -268,7 +267,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "Ответьте на несколько вопросов, и наш специалист свяжется с вами.\n\n"
             "Шаг 1 из 9\n"
             "Укажите город/регион объекта:",
-            parse_mode="Markdown"
+            
         )
         return REGION
     
@@ -284,7 +283,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "• BIM-моделирование\n"
             "• Инженерные изыскания\n\n"
             "_Для отмены: /cancel_",
-            parse_mode="Markdown"
+            
         )
         return TECH_QUESTION
     
@@ -300,7 +299,7 @@ async def request_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         "Шаг 1 из 9\n"
         "Укажите город/регион объекта:\n\n"
         "_Для отмены: /cancel_",
-        parse_mode="Markdown"
+        
     )
     return REGION
 
@@ -330,7 +329,7 @@ async def get_region(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         "Шаг 2 из 9\n"
         "Выберите тип объекта:",
         reply_markup=keyboard,
-        parse_mode="Markdown"
+        
     )
     return OBJECT_TYPE
 
@@ -343,7 +342,7 @@ async def get_object_type(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await update.message.reply_text(
             "Укажите тип вашего объекта:",
             reply_markup=ReplyKeyboardRemove(),
-            parse_mode="Markdown"
+            
         )
         return OBJECT_TYPE_CUSTOM
     
@@ -353,7 +352,7 @@ async def get_object_type(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         "Шаг 3 из 9\n"
         "Укажите примерную площадь объекта (м²):",
         reply_markup=ReplyKeyboardRemove(),
-        parse_mode="Markdown"
+        
     )
     return AREA
 
@@ -365,7 +364,7 @@ async def get_object_type_custom(update: Update, context: ContextTypes.DEFAULT_T
     await update.message.reply_text(
         "Шаг 3 из 9\n"
         "Укажите примерную площадь объекта (м²):",
-        parse_mode="Markdown"
+        
     )
     return AREA
 
@@ -391,7 +390,7 @@ async def get_area(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         "Шаг 4 из 9\n"
         "На какой стадии находится проект?",
         reply_markup=keyboard,
-        parse_mode="Markdown"
+        
     )
     return STAGE
 
@@ -418,7 +417,7 @@ async def get_stage(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         "Шаг 5 из 9\n"
         "Что требуется?",
         reply_markup=keyboard,
-        parse_mode="Markdown"
+        
     )
     return SERVICE
 
@@ -441,7 +440,7 @@ async def get_service(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         "Шаг 6 из 9\n"
         "Требуется ли BIM-проектирование?",
         reply_markup=keyboard,
-        parse_mode="Markdown"
+        
     )
     return BIM_QUESTION
 
@@ -464,7 +463,7 @@ async def get_bim(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         "Шаг 7 из 9\n"
         "Требуются ли инженерные изыскания\n(геодезия, геология, экология)?",
         reply_markup=keyboard,
-        parse_mode="Markdown"
+        
     )
     return SURVEY_QUESTION
 
@@ -488,7 +487,7 @@ async def get_survey(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         "Шаг 8 из 9\n"
         "Когда планируете начать?",
         reply_markup=keyboard,
-        parse_mode="Markdown"
+        
     )
     return TIMELINE
 
@@ -508,7 +507,7 @@ async def get_timeline(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         "Добавьте комментарий или дополнительную информацию:\n"
         "(или нажмите «Пропустить»)",
         reply_markup=keyboard,
-        parse_mode="Markdown"
+        
     )
     return COMMENT
 
@@ -531,7 +530,7 @@ async def get_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         "📎 Если есть файлы (ТЗ, ГПЗУ, чертежи), можете прикрепить их сейчас.\n\n"
         "Отправьте файл(ы) или нажмите «Пропустить файлы».",
         reply_markup=keyboard,
-        parse_mode="Markdown"
+        
     )
     return FILES
 
@@ -546,7 +545,7 @@ async def get_files(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.message.reply_text(
             f"✅ Файл получен: {update.message.document.file_name}\n\n"
             "Отправьте ещё файл или нажмите «Пропустить файлы» для продолжения.",
-            parse_mode="Markdown"
+            
         )
         return FILES
     
@@ -558,7 +557,7 @@ async def get_files(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.message.reply_text(
             "✅ Фото получено.\n\n"
             "Отправьте ещё файл или нажмите «Пропустить файлы» для продолжения.",
-            parse_mode="Markdown"
+            
         )
         return FILES
     
@@ -569,7 +568,7 @@ async def get_files(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             "Оставьте контакт для связи:\n"
             "телефон или имя в Telegram",
             reply_markup=ReplyKeyboardRemove(),
-            parse_mode="Markdown"
+            
         )
         return CONTACT
 
@@ -609,7 +608,7 @@ async def get_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             await context.bot.send_message(
                 chat_id=MANAGER_CHAT_ID,
                 text=request_text,
-                parse_mode="Markdown"
+                
             )
             
             # Отправляем файлы менеджеру
@@ -643,8 +642,8 @@ async def get_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         "📞 Городской: 8 (495) 118-34-88\n"
         "📧 Email: info@arxproektstroy.ru\n\n"
         "Спасибо за обращение в ADC Group!",
-        reply_markup=get_main_keyboard(),
-        parse_mode="Markdown"
+        reply_markup=get_main_keyboard()
+        
     )
     
     # Очищаем данные
@@ -661,7 +660,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         "❌ Заявка отменена.\n\n"
         "Вы можете вернуться в главное меню: /start",
         reply_markup=ReplyKeyboardRemove(),
-        parse_mode="Markdown"
+        
     )
     return ConversationHandler.END
 
@@ -682,7 +681,7 @@ async def get_tech_question(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                      f"📅 Дата: {datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
                      f"💬 Вопрос:\n{question}\n\n"
                      f"@{user.username if user.username else 'нет username'}",
-                parse_mode="Markdown"
+                
             )
             logger.info(f"Tech question sent from user: {user.id}")
         except Exception as e:
@@ -694,8 +693,8 @@ async def get_tech_question(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         "Если вопрос срочный, можете позвонить:\n"
         "📞 +7 939 111 30 42\n"
         "📞 8 (495) 118-34-88",
-        reply_markup=get_main_keyboard(),
-        parse_mode="Markdown"
+        reply_markup=get_main_keyboard()
+        
     )
     
     return ConversationHandler.END
@@ -714,7 +713,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "Здравствуйте! 👋\n\n"
             "Я — навигатор канала ADC Group.\n"
             "Нажмите /start для просмотра меню.",
-            parse_mode="Markdown"
+            
         )
         answered = True
     
@@ -724,7 +723,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "Для расчёта оставьте заявку — наш специалист "
             "подготовит коммерческое предложение.\n\n"
             "📝 /request — оставить заявку",
-            parse_mode="Markdown"
+            
         )
         answered = True
     
@@ -736,7 +735,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "• 5 000–20 000 м² — от 90 дней\n"
             "• более 20 000 м² — от 120 дней\n\n"
             "📝 Для точного расчёта: /request",
-            parse_mode="Markdown"
+            
         )
         answered = True
     
@@ -748,7 +747,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "Email: info@arxproektstroy.ru\n"
             "Сайт: arxproektstroy.ru\n\n"
             "📝 Или оставьте заявку: /request",
-            parse_mode="Markdown"
+            
         )
         answered = True
     
@@ -762,7 +761,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "• Точные спецификации\n"
             "• Удобство согласований\n\n"
             "📝 Для расчёта: /request",
-            parse_mode="Markdown"
+            
         )
         answered = True
     
@@ -774,7 +773,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "• Устраняем замечания за свой счёт\n"
             "• Опыт работы со всеми регионами\n\n"
             "📝 Подробнее: /request",
-            parse_mode="Markdown"
+            
         )
         answered = True
     
@@ -786,7 +785,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "• Инженерно-геологические изыскания\n"
             "• Экологические изыскания\n\n"
             "📝 Заказать: /request",
-            parse_mode="Markdown"
+            
         )
         answered = True
     
@@ -795,7 +794,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "Я могу помочь с информацией о компании и услугах.\n\n"
             "Нажмите /start для просмотра меню\n"
             "или /request чтобы оставить заявку.",
-            parse_mode="Markdown"
+            
         )
         
         # Отправляем неотвеченный вопрос менеджеру
@@ -807,7 +806,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                          f"👤 {user.full_name or 'Пользователь'} (@{user.username or user.id})\n"
                          f"💬 {update.message.text}\n\n"
                          f"_Бот не нашёл подходящий ответ_",
-                    parse_mode="Markdown"
+                    
                 )
             except Exception as e:
                 logger.error(f"Failed to send unanswered question: {e}")
