@@ -1,16 +1,16 @@
 """
 Telegram-бот «Навигатор ADC» — публичный бот для канала
-Версия: 1.0
+Версия: 2.1
 Дата: 18.01.2026
 ООО «МИРИНГ ГРУП»
 
 ФУНКЦИОНАЛ:
 - Информация о компании
 - Категории услуг (без цен)
-- Форма заявки → уведомление менеджеру
+- Расширенная форма заявки с файлами
+- Вопрос техническому специалисту
+- Сбор неотвеченных вопросов
 - Ссылки на сайт/портфолио
-
-БЕЗ: ставок, калькулятора, внутренних контактов, скриптов
 """
 
 import os
@@ -18,7 +18,7 @@ import logging
 import threading
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, CallbackQueryHandler,
     ConversationHandler, filters, ContextTypes
@@ -32,16 +32,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ============== НАСТРОЙКИ ==============
-# ID менеджера для уведомлений о заявках (заменить на реальный)
 MANAGER_CHAT_ID = os.environ.get("MANAGER_CHAT_ID", "")
 
 # Ссылки
-SITE_URL = "https://miringgroup.com"
+SITE_URL = "https://arxproektstroy.ru"
 PORTFOLIO_URL = "https://drive.google.com/file/d/1gj0bPzw36cJMR413GEoRHoGSUjQKD29_/view"
 CHANNEL_URL = "https://t.me/ADC_Project"
 
 # Состояния для ConversationHandler (форма заявки)
-REGION, OBJECT_TYPE, AREA, STAGE, SERVICE, TIMELINE, CONTACT = range(7)
+(REGION, OBJECT_TYPE, OBJECT_TYPE_CUSTOM, AREA, STAGE, SERVICE, 
+ BIM_QUESTION, SURVEY_QUESTION, TIMELINE, COMMENT, FILES, CONTACT, TECH_QUESTION) = range(13)
 
 
 # ============== ИНФОРМАЦИЯ О КОМПАНИИ ==============
@@ -60,17 +60,19 @@ COMPANY_INFO = """🏢 **ADC Group** (ООО «МИРИНГ ГРУП»)
 🏆 **Знаковые заказчики:**
 Лукойл, Сбербанк, Газпром, ПИК, X5 Retail, РЖД, Магнит, Правительство Москвы
 
-🌐 Сайт: miringgroup.com
-📞 Телефон: 8-800-350-13-90
+🌐 Сайт: arxproektstroy.ru
+📞 Мобильный: +7 939 111 30 42
+📞 Городской: 8 (495) 118-34-88
 📧 Email: info@arxproektstroy.ru"""
 
 
 SERVICES_INFO = """📐 **УСЛУГИ ADC Group**
 
 **1. Проектирование**
+• Эскизный проект
+• АГР/АГО (архитектурно-градостроительный облик)
 • Проектная документация (стадия П)
 • Рабочая документация (стадия РД)
-• Эскизное проектирование
 • BIM-моделирование
 
 **2. Сопровождение**
@@ -147,6 +149,7 @@ def get_main_keyboard():
         [InlineKeyboardButton("🏗 Типы объектов", callback_data="objects")],
         [InlineKeyboardButton("📁 Портфолио", callback_data="portfolio")],
         [InlineKeyboardButton("📝 Оставить заявку", callback_data="request")],
+        [InlineKeyboardButton("❓ Задать вопрос специалисту", callback_data="tech_question")],
         [InlineKeyboardButton("📢 Канал ADC Group", url=CHANNEL_URL)],
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -204,15 +207,16 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 • Оставить заявку — форма для связи
 
 **Контакты:**
-📞 8-800-350-13-90
+📞 Мобильный: +7 939 111 30 42
+📞 Городской: 8 (495) 118-34-88
 📧 info@arxproektstroy.ru
-🌐 miringgroup.com"""
+🌐 arxproektstroy.ru"""
     
     await update.message.reply_text(text, parse_mode="Markdown")
 
 
 # ============== ОБРАБОТЧИКИ КНОПОК ==============
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Обработка нажатий на inline-кнопки"""
     query = update.callback_query
     await query.answer()
@@ -228,6 +232,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             reply_markup=get_main_keyboard(),
             parse_mode="Markdown"
         )
+        return ConversationHandler.END
     
     elif data == "company":
         await query.edit_message_text(
@@ -258,25 +263,43 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
     
     elif data == "request":
-        # Запускаем форму заявки
         await query.edit_message_text(
             "📝 **Заявка на консультацию**\n\n"
             "Ответьте на несколько вопросов, и наш специалист свяжется с вами.\n\n"
-            "**Шаг 1 из 6**\n"
+            "**Шаг 1 из 9**\n"
             "Укажите город/регион объекта:",
             parse_mode="Markdown"
         )
         return REGION
+    
+    elif data == "tech_question":
+        await query.edit_message_text(
+            "❓ **Вопрос техническому специалисту**\n\n"
+            "Напишите ваш вопрос — наш специалист ответит в ближайшее время.\n\n"
+            "Можете спросить про:\n"
+            "• Состав проектной документации\n"
+            "• Требования к исходным данным\n"
+            "• Сроки и этапы проектирования\n"
+            "• Прохождение экспертизы\n"
+            "• BIM-моделирование\n"
+            "• Инженерные изыскания\n\n"
+            "_Для отмены: /cancel_",
+            parse_mode="Markdown"
+        )
+        return TECH_QUESTION
+    
+    return ConversationHandler.END
 
 
-# ============== ФОРМА ЗАЯВКИ (ConversationHandler) ==============
+# ============== ФОРМА ЗАЯВКИ ==============
 async def request_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Начало формы заявки через команду /request"""
     await update.message.reply_text(
         "📝 **Заявка на консультацию**\n\n"
         "Ответьте на несколько вопросов, и наш специалист свяжется с вами.\n\n"
-        "**Шаг 1 из 6**\n"
-        "Укажите город/регион объекта:",
+        "**Шаг 1 из 9**\n"
+        "Укажите город/регион объекта:\n\n"
+        "_Для отмены: /cancel_",
         parse_mode="Markdown"
     )
     return REGION
@@ -288,18 +311,23 @@ async def get_region(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     
     keyboard = ReplyKeyboardMarkup(
         [
-            ["Склад", "Производство"],
-            ["Торговый центр", "Офис/БЦ"],
-            ["Медицина", "Образование"],
-            ["Жильё/МКД", "Гостиница"],
-            ["Другое"]
+            ["Склад / Логистический центр"],
+            ["Производство / Завод"],
+            ["Торговый центр / Магазин"],
+            ["Офисное здание / БЦ"],
+            ["Жилой дом / МКД"],
+            ["Гостиница / Санаторий"],
+            ["Медицинский объект"],
+            ["Образовательный объект"],
+            ["Спортивный объект"],
+            ["🔹 Другое (указать)"]
         ],
         one_time_keyboard=True,
         resize_keyboard=True
     )
     
     await update.message.reply_text(
-        "**Шаг 2 из 6**\n"
+        "**Шаг 2 из 9**\n"
         "Выберите тип объекта:",
         reply_markup=keyboard,
         parse_mode="Markdown"
@@ -309,11 +337,34 @@ async def get_region(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def get_object_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Получение типа объекта"""
-    context.user_data['object_type'] = update.message.text
+    text = update.message.text
+    
+    if "Другое" in text:
+        await update.message.reply_text(
+            "Укажите тип вашего объекта:",
+            reply_markup=ReplyKeyboardRemove(),
+            parse_mode="Markdown"
+        )
+        return OBJECT_TYPE_CUSTOM
+    
+    context.user_data['object_type'] = text
     
     await update.message.reply_text(
-        "**Шаг 3 из 6**\n"
-        "Укажите ориентировочную площадь (м²) или мощность объекта:",
+        "**Шаг 3 из 9**\n"
+        "Укажите примерную площадь объекта (м²):",
+        reply_markup=ReplyKeyboardRemove(),
+        parse_mode="Markdown"
+    )
+    return AREA
+
+
+async def get_object_type_custom(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Получение пользовательского типа объекта"""
+    context.user_data['object_type'] = update.message.text + " (указано пользователем)"
+    
+    await update.message.reply_text(
+        "**Шаг 3 из 9**\n"
+        "Укажите примерную площадь объекта (м²):",
         parse_mode="Markdown"
     )
     return AREA
@@ -327,16 +378,17 @@ async def get_area(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         [
             ["Идея / концепция"],
             ["Подбор участка"],
-            ["Проектирование"],
+            ["Есть участок, нужен проект"],
+            ["Есть проект, нужна корректировка"],
             ["Строительство"],
-            ["Эксплуатация"]
+            ["Эксплуатация / реконструкция"]
         ],
         one_time_keyboard=True,
         resize_keyboard=True
     )
     
     await update.message.reply_text(
-        "**Шаг 4 из 6**\n"
+        "**Шаг 4 из 9**\n"
         "На какой стадии находится проект?",
         reply_markup=keyboard,
         parse_mode="Markdown"
@@ -350,18 +402,20 @@ async def get_stage(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     
     keyboard = ReplyKeyboardMarkup(
         [
+            ["Эскизный проект"],
+            ["АГР / АГО"],
             ["Проектирование (П+РД)"],
             ["Только проектная (П)"],
             ["Только рабочая (РД)"],
             ["Строительство"],
-            ["Комплекс услуг"]
+            ["Комплекс услуг (проект + строительство)"]
         ],
         one_time_keyboard=True,
         resize_keyboard=True
     )
     
     await update.message.reply_text(
-        "**Шаг 5 из 6**\n"
+        "**Шаг 5 из 9**\n"
         "Что требуется?",
         reply_markup=keyboard,
         parse_mode="Markdown"
@@ -375,6 +429,52 @@ async def get_service(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     
     keyboard = ReplyKeyboardMarkup(
         [
+            ["Да, нужен BIM"],
+            ["Нет, без BIM"],
+            ["Нужна консультация по BIM"]
+        ],
+        one_time_keyboard=True,
+        resize_keyboard=True
+    )
+    
+    await update.message.reply_text(
+        "**Шаг 6 из 9**\n"
+        "Требуется ли BIM-проектирование?",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return BIM_QUESTION
+
+
+async def get_bim(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Получение ответа про BIM"""
+    context.user_data['bim'] = update.message.text
+    
+    keyboard = ReplyKeyboardMarkup(
+        [
+            ["Да, нужны изыскания"],
+            ["Нет, изыскания есть"],
+            ["Нужна консультация"]
+        ],
+        one_time_keyboard=True,
+        resize_keyboard=True
+    )
+    
+    await update.message.reply_text(
+        "**Шаг 7 из 9**\n"
+        "Требуются ли инженерные изыскания\n(геодезия, геология, экология)?",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return SURVEY_QUESTION
+
+
+async def get_survey(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Получение ответа про изыскания"""
+    context.user_data['survey'] = update.message.text
+    
+    keyboard = ReplyKeyboardMarkup(
+        [
             ["Срочно (в течение месяца)"],
             ["В ближайшие 3 месяца"],
             ["В течение полугода"],
@@ -385,7 +485,7 @@ async def get_service(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     )
     
     await update.message.reply_text(
-        "**Шаг 6 из 6**\n"
+        "**Шаг 8 из 9**\n"
         "Когда планируете начать?",
         reply_markup=keyboard,
         parse_mode="Markdown"
@@ -397,13 +497,81 @@ async def get_timeline(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     """Получение сроков"""
     context.user_data['timeline'] = update.message.text
     
+    keyboard = ReplyKeyboardMarkup(
+        [["Пропустить"]],
+        one_time_keyboard=True,
+        resize_keyboard=True
+    )
+    
     await update.message.reply_text(
-        "✅ Почти готово!\n\n"
-        "Оставьте контакт для связи:\n"
-        "телефон или имя в Telegram",
+        "**Шаг 9 из 9**\n"
+        "Добавьте комментарий или дополнительную информацию:\n"
+        "(или нажмите «Пропустить»)",
+        reply_markup=keyboard,
         parse_mode="Markdown"
     )
-    return CONTACT
+    return COMMENT
+
+
+async def get_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Получение комментария"""
+    text = update.message.text
+    if text.lower() != "пропустить":
+        context.user_data['comment'] = text
+    else:
+        context.user_data['comment'] = "-"
+    
+    keyboard = ReplyKeyboardMarkup(
+        [["Пропустить файлы"]],
+        one_time_keyboard=True,
+        resize_keyboard=True
+    )
+    
+    await update.message.reply_text(
+        "📎 Если есть файлы (ТЗ, ГПЗУ, чертежи), можете прикрепить их сейчас.\n\n"
+        "Отправьте файл(ы) или нажмите «Пропустить файлы».",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    return FILES
+
+
+async def get_files(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Получение файлов"""
+    if update.message.document:
+        if 'files' not in context.user_data:
+            context.user_data['files'] = []
+        context.user_data['files'].append(update.message.document.file_id)
+        
+        await update.message.reply_text(
+            f"✅ Файл получен: {update.message.document.file_name}\n\n"
+            "Отправьте ещё файл или нажмите «Пропустить файлы» для продолжения.",
+            parse_mode="Markdown"
+        )
+        return FILES
+    
+    elif update.message.photo:
+        if 'files' not in context.user_data:
+            context.user_data['files'] = []
+        context.user_data['files'].append(update.message.photo[-1].file_id)
+        
+        await update.message.reply_text(
+            "✅ Фото получено.\n\n"
+            "Отправьте ещё файл или нажмите «Пропустить файлы» для продолжения.",
+            parse_mode="Markdown"
+        )
+        return FILES
+    
+    else:
+        # Текстовое сообщение — переходим к контакту
+        await update.message.reply_text(
+            "✅ Почти готово!\n\n"
+            "Оставьте контакт для связи:\n"
+            "телефон или имя в Telegram",
+            reply_markup=ReplyKeyboardRemove(),
+            parse_mode="Markdown"
+        )
+        return CONTACT
 
 
 async def get_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -412,6 +580,10 @@ async def get_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     user = update.effective_user
     
     # Формируем заявку
+    files_info = ""
+    if context.user_data.get('files'):
+        files_info = f"\n📎 **Файлов прикреплено:** {len(context.user_data['files'])}"
+    
     request_text = f"""🔔 **НОВАЯ ЗАЯВКА С КАНАЛА**
 
 👤 **Пользователь:** {user.full_name or user.username or 'Не указано'}
@@ -423,8 +595,11 @@ async def get_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 📐 **Площадь:** {context.user_data.get('area', '-')}
 📊 **Стадия:** {context.user_data.get('stage', '-')}
 🔧 **Услуга:** {context.user_data.get('service', '-')}
+💻 **BIM:** {context.user_data.get('bim', '-')}
+🔬 **Изыскания:** {context.user_data.get('survey', '-')}
 ⏰ **Сроки:** {context.user_data.get('timeline', '-')}
-📞 **Контакт:** {context.user_data.get('contact', '-')}
+💬 **Комментарий:** {context.user_data.get('comment', '-')}
+📞 **Контакт:** {context.user_data.get('contact', '-')}{files_info}
 
 @{user.username if user.username else 'нет username'}"""
 
@@ -436,6 +611,26 @@ async def get_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
                 text=request_text,
                 parse_mode="Markdown"
             )
+            
+            # Отправляем файлы менеджеру
+            if context.user_data.get('files'):
+                for file_id in context.user_data['files']:
+                    try:
+                        await context.bot.send_document(
+                            chat_id=MANAGER_CHAT_ID,
+                            document=file_id,
+                            caption=f"📎 Файл к заявке от {user.full_name or user.username}"
+                        )
+                    except:
+                        try:
+                            await context.bot.send_photo(
+                                chat_id=MANAGER_CHAT_ID,
+                                photo=file_id,
+                                caption=f"📎 Фото к заявке от {user.full_name or user.username}"
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to send file: {e}")
+            
             logger.info(f"Request sent to manager: {user.id}")
         except Exception as e:
             logger.error(f"Failed to send to manager: {e}")
@@ -444,7 +639,8 @@ async def get_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     await update.message.reply_text(
         "✅ **Заявка отправлена!**\n\n"
         "Наш специалист свяжется с вами в ближайшее время.\n\n"
-        "📞 Для срочной связи: 8-800-350-13-90\n"
+        "📞 Мобильный: +7 939 111 30 42\n"
+        "📞 Городской: 8 (495) 118-34-88\n"
         "📧 Email: info@arxproektstroy.ru\n\n"
         "Спасибо за обращение в ADC Group!",
         reply_markup=get_main_keyboard(),
@@ -464,8 +660,44 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text(
         "❌ Заявка отменена.\n\n"
         "Вы можете вернуться в главное меню: /start",
+        reply_markup=ReplyKeyboardRemove(),
         parse_mode="Markdown"
     )
+    return ConversationHandler.END
+
+
+async def get_tech_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Получение технического вопроса и отправка специалисту"""
+    question = update.message.text
+    user = update.effective_user
+    
+    # Отправляем вопрос менеджеру
+    if MANAGER_CHAT_ID:
+        try:
+            await context.bot.send_message(
+                chat_id=MANAGER_CHAT_ID,
+                text=f"❓ **ТЕХНИЧЕСКИЙ ВОПРОС**\n\n"
+                     f"👤 **От:** {user.full_name or 'Пользователь'}\n"
+                     f"🆔 **ID:** {user.id}\n"
+                     f"📅 **Дата:** {datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
+                     f"💬 **Вопрос:**\n{question}\n\n"
+                     f"@{user.username if user.username else 'нет username'}",
+                parse_mode="Markdown"
+            )
+            logger.info(f"Tech question sent from user: {user.id}")
+        except Exception as e:
+            logger.error(f"Failed to send tech question: {e}")
+    
+    await update.message.reply_text(
+        "✅ **Вопрос отправлен!**\n\n"
+        "Наш технический специалист ответит в ближайшее время.\n\n"
+        "Если вопрос срочный, можете позвонить:\n"
+        "📞 +7 939 111 30 42\n"
+        "📞 8 (495) 118-34-88",
+        reply_markup=get_main_keyboard(),
+        parse_mode="Markdown"
+    )
+    
     return ConversationHandler.END
 
 
@@ -473,6 +705,8 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработка произвольных сообщений"""
     text = update.message.text.lower()
+    user = update.effective_user
+    answered = False
     
     # Простые ответы на ключевые слова
     if any(word in text for word in ["привет", "здравствуй", "добрый"]):
@@ -482,8 +716,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "Нажмите /start для просмотра меню.",
             parse_mode="Markdown"
         )
+        answered = True
     
-    elif any(word in text for word in ["цена", "стоимость", "сколько"]):
+    elif any(word in text for word in ["цена", "стоимость", "сколько стоит", "прайс"]):
         await update.message.reply_text(
             "💰 Стоимость зависит от типа и площади объекта.\n\n"
             "Для расчёта оставьте заявку — наш специалист "
@@ -491,8 +726,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "📝 /request — оставить заявку",
             parse_mode="Markdown"
         )
+        answered = True
     
-    elif any(word in text for word in ["срок", "сколько времени", "как долго"]):
+    elif any(word in text for word in ["срок", "сколько времени", "как долго", "когда"]):
         await update.message.reply_text(
             "⏰ Сроки проектирования зависят от площади и сложности объекта.\n\n"
             "Ориентировочно:\n"
@@ -502,16 +738,57 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "📝 Для точного расчёта: /request",
             parse_mode="Markdown"
         )
+        answered = True
     
-    elif any(word in text for word in ["контакт", "телефон", "позвонить"]):
+    elif any(word in text for word in ["контакт", "телефон", "позвонить", "связаться"]):
         await update.message.reply_text(
             "📞 **Контакты ADC Group:**\n\n"
-            "Телефон: 8-800-350-13-90\n"
+            "Мобильный: +7 939 111 30 42\n"
+            "Городской: 8 (495) 118-34-88\n"
             "Email: info@arxproektstroy.ru\n"
-            "Сайт: miringgroup.com\n\n"
+            "Сайт: arxproektstroy.ru\n\n"
             "📝 Или оставьте заявку: /request",
             parse_mode="Markdown"
         )
+        answered = True
+    
+    elif any(word in text for word in ["bim", "бим"]):
+        await update.message.reply_text(
+            "💻 **BIM-проектирование**\n\n"
+            "ADC Group работает с BIM-технологиями с 2018 года.\n\n"
+            "Преимущества:\n"
+            "• 3D-модель объекта\n"
+            "• Автоматическая проверка коллизий\n"
+            "• Точные спецификации\n"
+            "• Удобство согласований\n\n"
+            "📝 Для расчёта: /request",
+            parse_mode="Markdown"
+        )
+        answered = True
+    
+    elif any(word in text for word in ["экспертиза", "экспертизу"]):
+        await update.message.reply_text(
+            "🏛 **Прохождение экспертизы**\n\n"
+            "Сопровождаем проекты в государственной и негосударственной экспертизе.\n\n"
+            "• 87% экспертиз с первого раза\n"
+            "• Устраняем замечания за свой счёт\n"
+            "• Опыт работы со всеми регионами\n\n"
+            "📝 Подробнее: /request",
+            parse_mode="Markdown"
+        )
+        answered = True
+    
+    elif any(word in text for word in ["изыскания", "геология", "геодезия"]):
+        await update.message.reply_text(
+            "🔬 **Инженерные изыскания**\n\n"
+            "Выполняем полный комплекс:\n"
+            "• Геодезические изыскания\n"
+            "• Инженерно-геологические изыскания\n"
+            "• Экологические изыскания\n\n"
+            "📝 Заказать: /request",
+            parse_mode="Markdown"
+        )
+        answered = True
     
     else:
         await update.message.reply_text(
@@ -520,6 +797,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "или /request чтобы оставить заявку.",
             parse_mode="Markdown"
         )
+        
+        # Отправляем неотвеченный вопрос менеджеру
+        if MANAGER_CHAT_ID and len(text) > 3:
+            try:
+                await context.bot.send_message(
+                    chat_id=MANAGER_CHAT_ID,
+                    text=f"❓ **ВОПРОС БЕЗ ОТВЕТА**\n\n"
+                         f"👤 {user.full_name or 'Пользователь'} (@{user.username or user.id})\n"
+                         f"💬 {update.message.text}\n\n"
+                         f"_Бот не нашёл подходящий ответ_",
+                    parse_mode="Markdown"
+                )
+            except Exception as e:
+                logger.error(f"Failed to send unanswered question: {e}")
 
 
 # ============== HEALTH CHECK ==============
@@ -560,18 +851,32 @@ def main() -> None:
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("request", request_start),
-            CallbackQueryHandler(button_handler, pattern="^request$")
+            CallbackQueryHandler(button_handler, pattern="^request$"),
+            CallbackQueryHandler(button_handler, pattern="^tech_question$")
         ],
         states={
             REGION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_region)],
             OBJECT_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_object_type)],
+            OBJECT_TYPE_CUSTOM: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_object_type_custom)],
             AREA: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_area)],
             STAGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_stage)],
             SERVICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_service)],
+            BIM_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_bim)],
+            SURVEY_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_survey)],
             TIMELINE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_timeline)],
+            COMMENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_comment)],
+            FILES: [
+                MessageHandler(filters.Document.ALL, get_files),
+                MessageHandler(filters.PHOTO, get_files),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, get_files)
+            ],
             CONTACT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_contact)],
+            TECH_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tech_question)],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            CallbackQueryHandler(button_handler, pattern="^menu$")
+        ],
     )
     
     # Регистрация обработчиков
@@ -581,7 +886,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(button_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    logger.info("Bot ADC Navigator v1.0 started")
+    logger.info("Bot ADC Navigator v2.1 started")
     
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
